@@ -11,6 +11,9 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.util.FileCopyUtils;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.util.StringUtils;
 import org.subethamail.smtp.RejectException;
 import org.subethamail.smtp.TooMuchDataException;
@@ -23,9 +26,10 @@ import javax.mail.MessagingException;
 import javax.mail.Part;
 import javax.mail.internet.MimeMessage;
 import javax.mail.internet.MimeMultipart;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.SocketTimeoutException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -78,6 +82,7 @@ public class Mail2faxApplication implements CommandLineRunner, SimpleMessageList
 			}
 
 			HylaFAXClient client = new HylaFAXClient();
+			client.setPassive(true);
 			try {
 				client.open(hylafaxProperties.getServer(), hylafaxProperties.getPort());
 				if (StringUtils.hasText(hylafaxProperties.getUsername())) {
@@ -96,7 +101,10 @@ public class Mail2faxApplication implements CommandLineRunner, SimpleMessageList
 				job.setPageWidth(Paper.A4.getWidth());
 				job.setPageLength(Paper.A4.getHeight());
 				job.setVerticalResolution(Job.RESOLUTION_LOW);
-				job.setSendTime("NOW");
+				job.setKilltime("now + 1 days");
+				if (StringUtils.hasText(hylafaxProperties.getNotify())) {
+					job.setNotifyAddress(hylafaxProperties.getNotify());
+				}
 
 				client.mode(HylaFAXClient.MODE_STREAM);
 				client.type(HylaFAXClient.TYPE_IMAGE);
@@ -108,6 +116,7 @@ public class Mail2faxApplication implements CommandLineRunner, SimpleMessageList
 				}
 
 				client.submit(job);
+				log.info("Submitted FAX job {}", job.getId());
 			} catch (SocketTimeoutException e) {
 				throw new IOException("Unable to deliver fax", e);
 			} catch (ServerResponseException e) {
@@ -115,7 +124,7 @@ public class Mail2faxApplication implements CommandLineRunner, SimpleMessageList
 			} finally {
 				try {
 					client.quit();
-				} catch (ServerResponseException e) {
+				} catch (Exception e) {
 					// ignore
 				}
 			}

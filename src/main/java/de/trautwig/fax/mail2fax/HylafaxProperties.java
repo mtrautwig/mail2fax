@@ -10,6 +10,7 @@ public class HylafaxProperties {
     private String username;
     private String password;
     private String sender;
+    private String notify;
 
     public String getServer() {
         return server;
@@ -49,5 +50,13 @@ public class HylafaxProperties {
 
     public void setSender(String sender) {
         this.sender = sender;
+    }
+
+    public String getNotify() {
+        return notify;
+    }
+
+    public void setNotify(String notify) {
+        this.notify = notify;
     }
 }
